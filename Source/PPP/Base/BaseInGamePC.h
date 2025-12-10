@@ -58,4 +58,7 @@ public:
 
 	UFUNCTION()
 	void SpawnDestinationSystem();
+
+	UFUNCTION(BlueprintCallable)
+	void SimpleMoveToLocation(const FVector& GoalLocation);
 };

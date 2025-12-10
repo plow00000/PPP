@@ -11,8 +11,10 @@
 
 #include "Kismet/KismetMathLibrary.h"
 #include "Blueprint/AIBlueprintHelperLibrary.h"
+#include "NavigationSystem.h"
 
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Navigation/PathFollowingComponent.h"
 
 ABaseInGamePC::ABaseInGamePC()
 {
@@ -78,9 +80,11 @@ void ABaseInGamePC::PlayerTick(float DeltaTime)
 	if (bIsMoving)
 	{
 		MyChara->AddMovementInput(MyChara->GetCharacterMovement()->Velocity.GetSafeNormal2D());
-		double Dist = FVector::Dist(MyChara->GetActorLocation(), Destination + FVector(0, 0, 89.f));
-		bIsMoving = (Dist > 50);
-		bIsLerpMoving = (Dist <= 50);
+		//bIsLerpMoving = (Dist <= 50);
+	}
+	else
+	{
+		StopMovement();
 	}
 	if (bIsLerpMoving)
 	{
@@ -107,7 +111,7 @@ void ABaseInGamePC::Follow()
 		return;
 	}
 	
-	UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, Destination);
+	SimpleMoveToLocation(Destination);
 }
 
 bool ABaseInGamePC::CheckLand(FVector& ImpactPoint)
@@ -125,4 +129,72 @@ bool ABaseInGamePC::CheckLand(FVector& ImpactPoint)
 void ABaseInGamePC::SpawnDestinationSystem()
 {
 	UE_LOG(LogTemp, Warning, TEXT("DoubleBinded"));
+}
+
+void ABaseInGamePC::SimpleMoveToLocation(const FVector& GoalLocation)
+{
+
+	UNavigationSystemV1* NavSys = this ? FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()) : nullptr;
+	if (NavSys == nullptr || GetPawn() == nullptr)
+	{
+		UE_LOG(LogNavigation, Warning, TEXT("UNavigationSystemV1::SimpleMoveToActor called for NavSys:%s Controller:%s controlling Pawn:%s (if any of these is None then there's your problem"),
+			*GetNameSafe(NavSys), *GetNameSafe(this), this ? *GetNameSafe(GetPawn()) : TEXT("NULL"));
+		return;
+	}
+
+	UPathFollowingComponent* PFollowComp = FindComponentByClass<UPathFollowingComponent>();
+	if (PFollowComp == nullptr)
+	{
+		PFollowComp = NewObject<UPathFollowingComponent>(this);
+		PFollowComp->RegisterComponentWithWorld(GetWorld());
+		PFollowComp->Initialize();
+	}
+
+	if (PFollowComp == nullptr)
+	{
+		return;
+	}
+
+	if (!PFollowComp->IsPathFollowingAllowed())
+	{
+		return;
+	}
+
+	bIsMoving = FVector::Dist(MyChara->GetActorLocation(), GoalLocation + FVector(0, 0, 89.f)) < 5.f;
+
+	// script source, keep only one move request at time
+	if (PFollowComp->GetStatus() != EPathFollowingStatus::Idle)
+	{
+		PFollowComp->AbortMove(*NavSys, FPathFollowingResultFlags::ForcedScript | FPathFollowingResultFlags::NewRequest
+			, FAIRequestID::AnyRequest, bIsMoving ? EPathFollowingVelocityMode::Reset : EPathFollowingVelocityMode::Keep);
+	}
+
+	// script source, keep only one move request at time
+	if (PFollowComp->GetStatus() != EPathFollowingStatus::Idle)
+	{
+		PFollowComp->AbortMove(*NavSys, FPathFollowingResultFlags::ForcedScript | FPathFollowingResultFlags::NewRequest);
+	}
+
+	if (bIsMoving)
+	{
+		PFollowComp->RequestMoveWithImmediateFinish(EPathFollowingResult::Success);
+	}
+	else
+	{
+		const FVector AgentNavLocation = GetNavAgentLocation();
+		const ANavigationData* NavData = NavSys->GetNavDataForProps(GetNavAgentPropertiesRef(), AgentNavLocation);
+		if (NavData)
+		{
+			FPathFindingQuery Query(this, *NavData, AgentNavLocation, GoalLocation);
+			FPathFindingResult Result = NavSys->FindPathSync(Query);
+			if (Result.IsSuccessful())
+			{
+				PFollowComp->RequestMove(FAIMoveRequest(GoalLocation), Result.Path);
+			}
+			else if (PFollowComp->GetStatus() != EPathFollowingStatus::Idle)
+			{
+				PFollowComp->RequestMoveWithImmediateFinish(EPathFollowingResult::Invalid);
+			}
+		}
+	}
 }
