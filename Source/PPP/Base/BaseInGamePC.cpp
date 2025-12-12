@@ -105,13 +105,13 @@ void ABaseInGamePC::Follow()
 		return;
 	}
 
-	double Dist = FVector::Dist(MyChara->GetActorLocation(), Destination);
+	/*double Dist = FVector::Dist(MyChara->GetActorLocation(), Destination);
 	if (Dist < 20.f)
 	{
 		return;
-	}
+	}*/
 	
-	SimpleMoveToLocation(Destination);
+	UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, Destination);
 }
 
 bool ABaseInGamePC::CheckLand(FVector& ImpactPoint)
@@ -159,8 +159,9 @@ void ABaseInGamePC::SimpleMoveToLocation(const FVector& GoalLocation)
 	{
 		return;
 	}
-
 	bIsMoving = FVector::Dist(MyChara->GetActorLocation(), GoalLocation + FVector(0, 0, 89.f)) < 5.f;
+	
+	UE_LOG(LogTemp, Warning, TEXT("AtStart: %s"), *(StaticEnum<EPathFollowingStatus::Type>()->GetValueAsString(PFollowComp->GetStatus())));
 
 	// script source, keep only one move request at time
 	if (PFollowComp->GetStatus() != EPathFollowingStatus::Idle)
@@ -175,6 +176,9 @@ void ABaseInGamePC::SimpleMoveToLocation(const FVector& GoalLocation)
 		PFollowComp->AbortMove(*NavSys, FPathFollowingResultFlags::ForcedScript | FPathFollowingResultFlags::NewRequest);
 	}
 
+	UE_LOG(LogTemp, Warning, TEXT("AtBased: %s"), *(StaticEnum<EPathFollowingStatus::Type>()->GetValueAsString(PFollowComp->GetStatus())));
+
+
 	if (bIsMoving)
 	{
 		PFollowComp->RequestMoveWithImmediateFinish(EPathFollowingResult::Success);
@@ -187,13 +191,18 @@ void ABaseInGamePC::SimpleMoveToLocation(const FVector& GoalLocation)
 		{
 			FPathFindingQuery Query(this, *NavData, AgentNavLocation, GoalLocation);
 			FPathFindingResult Result = NavSys->FindPathSync(Query);
+			UE_LOG(LogTemp, Warning, TEXT("AtMiddle:%s"), *(StaticEnum<EPathFollowingStatus::Type>()->GetValueAsString(PFollowComp->GetStatus())));
 			if (Result.IsSuccessful())
 			{
 				PFollowComp->RequestMove(FAIMoveRequest(GoalLocation), Result.Path);
+				UE_LOG(LogTemp, Warning, TEXT("Requested"));
+				UE_LOG(LogTemp, Warning, TEXT("AtLast : %s"), *(StaticEnum<EPathFollowingStatus::Type>()->GetValueAsString(PFollowComp->GetStatus())));
 			}
 			else if (PFollowComp->GetStatus() != EPathFollowingStatus::Idle)
 			{
 				PFollowComp->RequestMoveWithImmediateFinish(EPathFollowingResult::Invalid);
+				UE_LOG(LogTemp, Warning, TEXT("Invalid"));
+				UE_LOG(LogTemp, Warning, TEXT("AtLast : %s"), *(StaticEnum<EPathFollowingStatus::Type>()->GetValueAsString(PFollowComp->GetStatus())));
 			}
 		}
 	}

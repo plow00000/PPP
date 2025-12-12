@@ -35,6 +35,9 @@ private:
 
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputMappingContext> IMC;
+
+	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<UInputMappingContext> TestIMC;
 public:
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Character)
@@ -61,4 +64,6 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SimpleMoveToLocation(const FVector& GoalLocation);
+
+	void ChangeKeyMapping();
 };
