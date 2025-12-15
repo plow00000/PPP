@@ -16,6 +16,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Navigation/PathFollowingComponent.h"
 
+#include "Blueprint/WidgetLayoutLibrary.h"
+
 ABaseInGamePC::ABaseInGamePC()
 {
 	bShowMouseCursor = true;
@@ -79,8 +81,9 @@ void ABaseInGamePC::PlayerTick(float DeltaTime)
 
 	if (bIsMoving)
 	{
-		MyChara->AddMovementInput(MyChara->GetCharacterMovement()->Velocity.GetSafeNormal2D());
-		//bIsLerpMoving = (Dist <= 50);
+		FVector NavGroundSpeed = MyChara->GetCharacterMovement()->Velocity;
+		MyChara->AddMovementInput(NavGroundSpeed.Length() > 500 ? NavGroundSpeed.GetSafeNormal2D() : (Destination - MyChara->GetActorLocation()).GetSafeNormal2D() * 600.f);
+		bIsMoving = (Destination - MyChara->GetActorLocation() + FVector(0, 0, MyChara->GetDefaultHalfHeight())).Length() >= 20;
 	}
 	else
 	{
@@ -131,79 +134,24 @@ void ABaseInGamePC::SpawnDestinationSystem()
 	UE_LOG(LogTemp, Warning, TEXT("DoubleBinded"));
 }
 
-void ABaseInGamePC::SimpleMoveToLocation(const FVector& GoalLocation)
+void ABaseInGamePC::ChangeKeyMapping()
 {
+}
 
-	UNavigationSystemV1* NavSys = this ? FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()) : nullptr;
-	if (NavSys == nullptr || GetPawn() == nullptr)
+void ABaseInGamePC::TurnCharacterToLookCursor()
+{
+	FVector CheckCursor;
+	FVector CursorPosition;
+	if (CheckLand(CheckCursor))
 	{
-		UE_LOG(LogNavigation, Warning, TEXT("UNavigationSystemV1::SimpleMoveToActor called for NavSys:%s Controller:%s controlling Pawn:%s (if any of these is None then there's your problem"),
-			*GetNameSafe(NavSys), *GetNameSafe(this), this ? *GetNameSafe(GetPawn()) : TEXT("NULL"));
-		return;
-	}
-
-	UPathFollowingComponent* PFollowComp = FindComponentByClass<UPathFollowingComponent>();
-	if (PFollowComp == nullptr)
-	{
-		PFollowComp = NewObject<UPathFollowingComponent>(this);
-		PFollowComp->RegisterComponentWithWorld(GetWorld());
-		PFollowComp->Initialize();
-	}
-
-	if (PFollowComp == nullptr)
-	{
-		return;
-	}
-
-	if (!PFollowComp->IsPathFollowingAllowed())
-	{
-		return;
-	}
-	bIsMoving = FVector::Dist(MyChara->GetActorLocation(), GoalLocation + FVector(0, 0, 89.f)) < 5.f;
-	
-	UE_LOG(LogTemp, Warning, TEXT("AtStart: %s"), *(StaticEnum<EPathFollowingStatus::Type>()->GetValueAsString(PFollowComp->GetStatus())));
-
-	// script source, keep only one move request at time
-	if (PFollowComp->GetStatus() != EPathFollowingStatus::Idle)
-	{
-		PFollowComp->AbortMove(*NavSys, FPathFollowingResultFlags::ForcedScript | FPathFollowingResultFlags::NewRequest
-			, FAIRequestID::AnyRequest, bIsMoving ? EPathFollowingVelocityMode::Reset : EPathFollowingVelocityMode::Keep);
-	}
-
-	// script source, keep only one move request at time
-	if (PFollowComp->GetStatus() != EPathFollowingStatus::Idle)
-	{
-		PFollowComp->AbortMove(*NavSys, FPathFollowingResultFlags::ForcedScript | FPathFollowingResultFlags::NewRequest);
-	}
-
-	UE_LOG(LogTemp, Warning, TEXT("AtBased: %s"), *(StaticEnum<EPathFollowingStatus::Type>()->GetValueAsString(PFollowComp->GetStatus())));
-
-
-	if (bIsMoving)
-	{
-		PFollowComp->RequestMoveWithImmediateFinish(EPathFollowingResult::Success);
+		CursorPosition = (CheckCursor - MyChara->GetActorLocation())* FVector(1.f, 1.f, 0);
 	}
 	else
 	{
-		const FVector AgentNavLocation = GetNavAgentLocation();
-		const ANavigationData* NavData = NavSys->GetNavDataForProps(GetNavAgentPropertiesRef(), AgentNavLocation);
-		if (NavData)
-		{
-			FPathFindingQuery Query(this, *NavData, AgentNavLocation, GoalLocation);
-			FPathFindingResult Result = NavSys->FindPathSync(Query);
-			UE_LOG(LogTemp, Warning, TEXT("AtMiddle:%s"), *(StaticEnum<EPathFollowingStatus::Type>()->GetValueAsString(PFollowComp->GetStatus())));
-			if (Result.IsSuccessful())
-			{
-				PFollowComp->RequestMove(FAIMoveRequest(GoalLocation), Result.Path);
-				UE_LOG(LogTemp, Warning, TEXT("Requested"));
-				UE_LOG(LogTemp, Warning, TEXT("AtLast : %s"), *(StaticEnum<EPathFollowingStatus::Type>()->GetValueAsString(PFollowComp->GetStatus())));
-			}
-			else if (PFollowComp->GetStatus() != EPathFollowingStatus::Idle)
-			{
-				PFollowComp->RequestMoveWithImmediateFinish(EPathFollowingResult::Invalid);
-				UE_LOG(LogTemp, Warning, TEXT("Invalid"));
-				UE_LOG(LogTemp, Warning, TEXT("AtLast : %s"), *(StaticEnum<EPathFollowingStatus::Type>()->GetValueAsString(PFollowComp->GetStatus())));
-			}
-		}
+		double X, Y;
+		GetMousePosition(X, Y);
+		FVector2D ScreenSize = UWidgetLayoutLibrary::GetViewportSize(GetWorld()) / 2.f;
+		CursorPosition = FVector(ScreenSize.Y - Y, X - ScreenSize.X, 0);
 	}
+	MyChara->SetActorRotation(UKismetMathLibrary::MakeRotFromX(CursorPosition));
 }

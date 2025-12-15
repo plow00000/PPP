@@ -56,14 +56,15 @@ public:
 	UFUNCTION()
 	void Follow();
 
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable, BlueprintPure)
 	bool CheckLand(FVector& ImpactPoint);
 
 	UFUNCTION()
 	void SpawnDestinationSystem();
 
-	UFUNCTION(BlueprintCallable)
-	void SimpleMoveToLocation(const FVector& GoalLocation);
-
 	void ChangeKeyMapping();
+
+	UFUNCTION(BlueprintCallable)
+	void TurnCharacterToLookCursor();
+
 };
