@@ -89,15 +89,6 @@ void ABaseInGamePC::PlayerTick(float DeltaTime)
 	{
 		StopMovement();
 	}
-	if (bIsLerpMoving)
-	{
-		MyChara->AddMovementInput((Destination - MyChara->GetActorLocation()).GetSafeNormal2D());
-		if (FVector::Dist(MyChara->GetActorLocation(), Destination + FVector(0, 0, 89.f)) < 20)
-		{
-			StopMovement();
-			bIsLerpMoving = false;
-		}
-	}
 }
 
 void ABaseInGamePC::Follow()

@@ -40,4 +40,7 @@ public:
 	inline USpringArmComponent* GetSpringArm() { return SpringArm; }
 	inline UCameraComponent* GetCamera() { return Camera; }
 
+public:
+	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = Animation)
+	TObjectPtr<UAnimMontage> BasicAttack;
 };

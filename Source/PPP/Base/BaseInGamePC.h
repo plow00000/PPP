@@ -43,14 +43,18 @@ public:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Character)
 	TObjectPtr<ABaseInGameCharacter> MyChara;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Movement)
 	FVector Destination;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Movement)
 	uint8 bIsMoving : 1;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Action)
+	uint8 bOnAction : 1;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Input)
+	uint8 bCanCombo : 1;
 protected:
-	uint8 bIsLerpMoving : 1;
 
 public:
 	UFUNCTION()
