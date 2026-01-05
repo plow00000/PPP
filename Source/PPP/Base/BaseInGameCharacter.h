@@ -4,19 +4,30 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "../Test/AttackerAnimInterface.h"
 #include "BaseInGameCharacter.generated.h"
 
 class USpringArmComponent;
 class UCameraComponent;
+class ABaseInGamePC;
 
 UCLASS()
-class PPP_API ABaseInGameCharacter : public ACharacter
+class PPP_API ABaseInGameCharacter : public ACharacter, public IAttackerAnimInterface
 {
 	GENERATED_BODY()
 
 public:
 	// Sets default values for this character's properties
 	ABaseInGameCharacter();
+
+public:
+	virtual void CheckCombo_Implementation() override;
+
+	inline virtual void StartCheckingCombo_Implementation() override;
+
+	inline virtual void StopCheckingCombo_Implementation() override;
+
+	inline virtual void MontageEnd_Implementation() override;
 
 private:
 	UPROPERTY(Category = Character, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
@@ -43,4 +54,6 @@ public:
 public:
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = Animation)
 	TObjectPtr<UAnimMontage> BasicAttack;
+
+	TObjectPtr<ABaseInGamePC> MyPC;
 };

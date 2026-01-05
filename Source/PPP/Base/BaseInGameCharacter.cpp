@@ -2,6 +2,7 @@
 
 
 #include "BaseInGameCharacter.h"
+#include "BaseInGamePC.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -35,6 +36,26 @@ ABaseInGameCharacter::ABaseInGameCharacter()
 	Camera->SetupAttachment(SpringArm);
 }
 
+void ABaseInGameCharacter::CheckCombo_Implementation()
+{
+	MyPC->CheckCombo_Implementation();
+}
+
+inline void ABaseInGameCharacter::StartCheckingCombo_Implementation()
+{
+	MyPC->StartCheckingCombo_Implementation();
+}
+
+void ABaseInGameCharacter::StopCheckingCombo_Implementation()
+{
+	MyPC->StopCheckingCombo_Implementation();
+}
+
+void ABaseInGameCharacter::MontageEnd_Implementation()
+{
+	MyPC->MontageEnd_Implementation();
+}
+
 // Called when the game starts or when spawned
 void ABaseInGameCharacter::BeginPlay()
 {
@@ -53,6 +74,5 @@ void ABaseInGameCharacter::Tick(float DeltaTime)
 void ABaseInGameCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
-
 }
 

@@ -9,6 +9,7 @@
 #include "InputAction.h"
 #include "InputMappingContext.h"
 
+#include "TimerManager.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Blueprint/AIBlueprintHelperLibrary.h"
 #include "NavigationSystem.h"
@@ -17,6 +18,8 @@
 #include "Navigation/PathFollowingComponent.h"
 
 #include "Blueprint/WidgetLayoutLibrary.h"
+
+#include "Components/SkeletalMeshComponent.h"
 
 ABaseInGamePC::ABaseInGamePC()
 {
@@ -57,6 +60,8 @@ void ABaseInGamePC::OnPossess(APawn* PawnToPossess)
 		return;
 	}
 
+	MyChara->MyPC = this;
+
 	UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(MyChara->InputComponent);
 
 	if (EIC)
@@ -66,6 +71,10 @@ void ABaseInGamePC::OnPossess(APawn* PawnToPossess)
 			EIC->BindAction(IA_Move, ETriggerEvent::Triggered, this, &ABaseInGamePC::Follow);
 			EIC->BindAction(IA_Move, ETriggerEvent::Started, this, &AController::StopMovement);
 			EIC->BindAction(IA_Move, ETriggerEvent::Completed | ETriggerEvent::Canceled, this, &ABaseInGamePC::SpawnDestinationSystem);
+		}
+		if (IA_BasicAttack)
+		{
+			EIC->BindAction(IA_BasicAttack, ETriggerEvent::Started, this, &ABaseInGamePC::BasicAttack);
 		}
 	}
 }
@@ -89,6 +98,66 @@ void ABaseInGamePC::PlayerTick(float DeltaTime)
 	{
 		StopMovement();
 	}
+
+	if (bTurning)
+	{
+		FRotator Diff = (LookRotation - MyChara->GetActorRotation());
+		if (abs(Diff.Yaw) < 5.f)
+		{
+			MyChara->SetActorRotation(LookRotation);
+			bTurning = false;
+		}
+		else
+		{
+			Diff.Yaw = FMath::Fmod(Diff.Yaw + 180.f, 360.f) - 180.f;
+			MyChara->AddActorWorldRotation(Diff * DeltaTime * 10.f);
+		}
+	}
+}
+
+void ABaseInGamePC::CheckCombo_Implementation()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Controller Interface CheckCombo Call"));
+	if (!bOnCombo)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Not On Combo"));
+		return;
+	}
+	bOnCombo = false;
+	++MontageSection;
+
+	UAnimInstance* AnimIns = MyChara->GetMesh()->GetAnimInstance();
+	if (!AnimIns)
+	{
+		return;
+	}
+	if (MontageSection > AnimIns->GetCurrentActiveMontage()->GetNumSections())
+	{
+		MontageSection = 1;
+	}
+	else
+	{
+		AnimIns->Montage_JumpToSection(FName(*FString::FromInt(MontageSection)), MyChara->BasicAttack);
+		TurnCharacterToLookCursor();
+	}
+}
+
+void ABaseInGamePC::StartCheckingCombo_Implementation()
+{
+	bCanCombo = true;
+}
+
+void ABaseInGamePC::StopCheckingCombo_Implementation()
+{
+	bCanCombo = false;
+}
+
+void ABaseInGamePC::MontageEnd_Implementation()
+{
+	bOnAction = false;
+	MontageSection = 1;
+	bCanCombo = false;
+	bOnCombo = false;
 }
 
 void ABaseInGamePC::Follow()
@@ -135,7 +204,7 @@ void ABaseInGamePC::TurnCharacterToLookCursor()
 	FVector CursorPosition;
 	if (CheckLand(CheckCursor))
 	{
-		CursorPosition = (CheckCursor - MyChara->GetActorLocation())* FVector(1.f, 1.f, 0);
+		CursorPosition = (CheckCursor - MyChara->GetActorLocation()) * FVector(1.f, 1.f, 0);
 	}
 	else
 	{
@@ -144,5 +213,33 @@ void ABaseInGamePC::TurnCharacterToLookCursor()
 		FVector2D ScreenSize = UWidgetLayoutLibrary::GetViewportSize(GetWorld()) / 2.f;
 		CursorPosition = FVector(ScreenSize.Y - Y, X - ScreenSize.X, 0);
 	}
-	MyChara->SetActorRotation(UKismetMathLibrary::MakeRotFromX(CursorPosition));
+
+	LookRotation = UKismetMathLibrary::MakeRotFromX(CursorPosition);
+	bTurning = true;
+
+	return;
+}
+
+void ABaseInGamePC::BasicAttack()
+{
+	if (!MyChara || !MyChara->BasicAttack)
+	{
+		return;
+	}
+	if (bOnAction)
+	{
+		if (bCanCombo)
+		{
+			bOnCombo = true;
+		}
+		return;
+	}
+	bIsMoving = false;
+	bOnAction = true;
+
+	StopMovement();
+
+	UAnimInstance* MeshAnim = MyChara->GetMesh()->GetAnimInstance();
+	MeshAnim->Montage_Play(MyChara->BasicAttack);
+	MeshAnim->Montage_JumpToSection(FName(*FString::FromInt(1)), MyChara->BasicAttack);
 }

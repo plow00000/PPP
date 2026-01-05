@@ -4,17 +4,19 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "../Test/AttackerAnimInterface.h"
 #include "BaseInGamePC.generated.h"
 
 class ABaseInGameCharacter;
 class UInputAction;
 class UInputMappingContext;
+struct FTimerHandle;
 
 /**
  * 
  */
 UCLASS()
-class PPP_API ABaseInGamePC : public APlayerController
+class PPP_API ABaseInGamePC : public APlayerController, public IAttackerAnimInterface
 {
 	GENERATED_BODY()
 
@@ -29,9 +31,21 @@ protected:
 public:
 	virtual void PlayerTick(float DeltaTime) override;
 
+public:
+	virtual void CheckCombo_Implementation() override;
+
+	virtual void StartCheckingCombo_Implementation() override;
+
+	virtual void StopCheckingCombo_Implementation() override;
+
+	virtual void MontageEnd_Implementation() override;
+
 private:
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> IA_Move;
+
+	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> IA_BasicAttack;
 
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputMappingContext> IMC;
@@ -54,6 +68,16 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Input)
 	uint8 bCanCombo : 1;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Input)
+	uint8 bOnCombo : 1;
+
+	uint8 bTurning : 1;
+
+	FRotator LookRotation;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Animation)
+	int32 MontageSection = 1;
 protected:
 
 public:
@@ -71,4 +95,6 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void TurnCharacterToLookCursor();
 
+	UFUNCTION(BlueprintCallable)
+	void BasicAttack();
 };
